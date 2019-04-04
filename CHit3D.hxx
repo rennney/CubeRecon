@@ -100,7 +100,7 @@ public:
     
     double GetCharge() const{return fCharge;}
     
-    TVector3 GetPosition() const {return fPosition;}
+   TVector3 GetPosition() const {return fPosition;}
     
     double GetFiberCharge(int plane) const{
         if(plane==0)return fChargeYZ;
@@ -134,7 +134,7 @@ private:
     std::vector<int> fConstituentsXZ;
     std::vector<int> fConstituentsYZ;
     
-
+ClassDef(CHit3D,1);
 
 };
 #endif
