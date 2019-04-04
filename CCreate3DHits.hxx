@@ -132,6 +132,7 @@ void C3HitCase(std::vector<CHit2D>* hitsXY,std::vector<CHit2D>* hitsXZ,std::vect
                             hit.AddConstituent((*hxz).GetId(),1);
                             hit.AddConstituent((*hyz).GetId(),0);
                             TVector3 position((*hxy).GetRow(),(*hxy).GetColumn(),(*hxz).GetColumn());
+                                hit.SetCharge(-1);
                             hit.SetPosition(position);
                             hits3D.push_back(hit);
                                 usedHitXY.push_back(*hxy);
@@ -229,6 +230,7 @@ void CCreate3DHits(TTree* tree2D){
                            hit.AddConstituent((*hyz).GetId(),0);
                            TVector3 position((*hxz).GetRow(),(*hyz).GetRow(),(*hxz).GetColumn());
                            hit.SetPosition(position);
+                           hit.SetCharge(-1);
                            hits3D.push_back(hit);
                            used_for2hYZ.push_back(*hyz);
                            used_for2hXZ.push_back(*hxz);
@@ -252,6 +254,7 @@ void CCreate3DHits(TTree* tree2D){
                                 hit.AddConstituent((*hyz).GetId(),0);
                                 TVector3 position((*hxy).GetRow(),(*hyz).GetRow(),(*hyz).GetColumn());
                                 hit.SetPosition(position);
+                                hit.SetCharge(-1);
                                 hits3D.push_back(hit);
                                 used_for2hYZ.push_back(*hyz);
                                 used_for2hXY.push_back(*hxy);
@@ -279,6 +282,7 @@ void CCreate3DHits(TTree* tree2D){
                       hit.AddConstituent((*hxz).GetId(),1);
                       TVector3 position((*hxy).GetRow(),(*hxy).GetColumn(),(*hxz).GetColumn());
                       hit.SetPosition(position);
+                      hit.SetCharge(-1);
                       hits3D.push_back(hit);
                       used_for2hXZ.push_back(*hxz);
                       used_for2hXY.push_back(*hxy);
