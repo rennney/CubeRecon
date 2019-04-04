@@ -78,7 +78,7 @@ std::set<double> UniqueElements(std::vector<CHit2D> tgt,int c=0){
     return set;
 };
 
-void C3HitCase(std::vector<CHit2D>* hitsXY,std::vector<CHit2D>* hitsXZ,std::vector<CHit2D>* hitsYZ,std::vector<CHit2D>& unusedXY,std::vector<CHit2D>& unusedXZ,std::vector<CHit2D>& unusedYZ,std::vector<CHit3D>& hits3D){
+void C3HitCase(std::vector<CHit2D>* hitsXY,std::vector<CHit2D>* hitsXZ,std::vector<CHit2D>* hitsYZ,std::vector<CHit2D>& unusedXY,std::vector<CHit2D>& unusedXZ,std::vector<CHit2D>& unusedYZ,std::vector<CHit3D>& hits3D,double ChargeCut){
     std::sort(hitsXY->begin(),hitsXY->end(),SortHits);
     std::sort(hitsXZ->begin(),hitsXZ->end(),SortHits);
     std::sort(hitsYZ->begin(),hitsYZ->end(),SortHits);
@@ -125,6 +125,9 @@ void C3HitCase(std::vector<CHit2D>* hitsXY,std::vector<CHit2D>* hitsXZ,std::vect
                             hit.SetFiberCharge((*hxy).GetCharge(),2);
                             hit.SetFiberCharge((*hxz).GetCharge(),1);
                             hit.SetFiberCharge((*hyz).GetCharge(),0);
+                                
+                                if((*hxy).GetCharge()<ChargeCut || (*hxz).GetCharge()<ChargeCut || (*hyz).GetCharge()<ChargeCut)continue;
+                                
                             hit.AddConstituent((*hxy).GetId(),2);
                             hit.AddConstituent((*hxz).GetId(),1);
                             hit.AddConstituent((*hyz).GetId(),0);
@@ -162,6 +165,8 @@ void C3HitCase(std::vector<CHit2D>* hitsXY,std::vector<CHit2D>* hitsXZ,std::vect
 
 void CCreate3DHits(TTree* tree2D){
     
+    double ChargeCut = 1.5;
+    
     std::vector<CHit2D>* hitsXY=0;
     std::vector<CHit2D>* hitsXZ=0;
     std::vector<CHit2D>* hitsYZ=0;
@@ -197,7 +202,7 @@ void CCreate3DHits(TTree* tree2D){
         std::cout<<"NXY="<<hitsXY->size()<<"; XZ="<<hitsXZ->size()<<"; YZ="<<hitsYZ->size()<<std::endl;
         
         if(hitsXY->size()>0,hitsXZ->size()>0,hitsYZ->size()>0){
-            C3HitCase(hitsXY,hitsXZ,hitsYZ,unusedXY,unusedXZ,unusedYZ,hits3D);
+            C3HitCase(hitsXY,hitsXZ,hitsYZ,unusedXY,unusedXZ,unusedYZ,hits3D,ChargeCut);
         }
         
         std::cout<<"3D Hits Formed From 3 fibers="<<hits3D.size()<<std::endl;
@@ -212,6 +217,7 @@ void CCreate3DHits(TTree* tree2D){
         if(unusedYZ.size()>0 && unusedXZ.size()>0){
             for(std::vector<CHit2D>::iterator hyz=unusedYZ.begin();hyz!=unusedYZ.end();++hyz){
                    for(std::vector<CHit2D>::iterator hxz=unusedXZ.begin();hxz!=unusedXZ.end();++hxz){
+                       if((*hxz).GetCharge()<ChargeCut || (*hyz).GetCharge()<ChargeCut)continue;
                        if((*hyz).GetColumn()==(*hxz).GetColumn()){
                            //CREATE3DHIT
                            CHit3D hit;
@@ -233,6 +239,7 @@ void CCreate3DHits(TTree* tree2D){
         if(unusedXY.size()>0 && unusedYZ.size()>0){
                 for(std::vector<CHit2D>::iterator hyz=unusedYZ.begin();hyz!=unusedYZ.end();++hyz){
                         for(std::vector<CHit2D>::iterator hxy=unusedXY.begin();hxy!=unusedXY.end();++hxy){
+                             if((*hxy).GetCharge()<ChargeCut || (*hyz).GetCharge()<ChargeCut)continue;
                             if((*hyz).GetRow()==(*hxy).GetColumn()){
                             //CREATE3DHIT
                                 CHit3D hit;
@@ -259,6 +266,7 @@ void CCreate3DHits(TTree* tree2D){
         if(unusedXY.size()>0 && unusedXZ.size()>0){
           for(std::vector<CHit2D>::iterator hxz=unusedXZ.begin();hxz!=unusedXZ.end();++hxz){
               for(std::vector<CHit2D>::iterator hxy=unusedXY.begin();hxy!=unusedXY.end();++hxy){
+                  if((*hxz).GetCharge()<ChargeCut || (*hxy).GetCharge()<ChargeCut)continue;
                   if((*hxz).GetRow()==(*hxy).GetRow()){
                       //CREATE3DHIT
                       CHit3D hit;
