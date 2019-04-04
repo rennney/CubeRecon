@@ -32,11 +32,11 @@ int CRecon(){
         gROOT->ProcessLine(".L CHit3D.cxx++");
     }
     
-    TFile* hfile = new TFile("testEvent_3DST+emptyECAL_event_222_sampleT.root","READ");
+    TFile* hfile = new TFile("testEvent_3DST+emptyECAL_event_222_sampleT_v2.root","READ");
     TTree* tree = (TTree*)hfile->Get("EDepSimTree");
     
     int nprocessEvents = 1;
-    int skip=1;
+    int skip=0;
     nprocessEvents+=skip;
     CInputRead(tree,nprocessEvents,skip);
     

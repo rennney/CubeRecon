@@ -39,11 +39,12 @@ void CInputRead(TTree *tree,int& nevts,int& skip){
 
     
     int event;
-    double hitLocation[1000][3],hitPE[1000][3],hitT[1000][3];
-
+    double hitLocation[1000][3],hitT[1000][3];
+    int hitPE[1000][3];
+    
     tree->SetBranchAddress("event",&event);
     tree->SetBranchAddress("hitLocation",&hitLocation);
-    tree->SetBranchAddress("hitPE",&hitPE);
+    tree->SetBranchAddress("hitPE_measure",&hitPE);
     tree->SetBranchAddress("hitT",&hitT);
     
     TFile* hfile2 = new TFile("FileWith2DHits.root","RECREATE");
@@ -105,9 +106,9 @@ void CInputRead(TTree *tree,int& nevts,int& skip){
             TVector3 position(hitLocation[i][0],hitLocation[i][1],hitLocation[i][2]);
             
 
-            double chargeXY = hitPE[i][2];
-            double chargeXZ = hitPE[i][1];
-            double chargeYZ = hitPE[i][0];
+            double chargeXY = (double)hitPE[i][2];
+            double chargeXZ = (double)hitPE[i][1];
+            double chargeYZ = (double)hitPE[i][0];
             
             double timeXY = hitT[i][2];
             double timeXZ = hitT[i][1];
