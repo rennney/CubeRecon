@@ -92,6 +92,7 @@ public:
                 return {};
             }
         }
+        return {};
     }
 
     int GetId() const{return fID;}
@@ -106,11 +107,25 @@ public:
         if(plane==0)return fChargeYZ;
         if(plane==1)return fChargeXZ;
         if(plane==2)return fChargeXY;
+        return -1;
     }
     
     
     bool operator==(const CHit3D& rhs) const { return this->GetId() == rhs.GetId();}
     
+    bool operator<(const CHit3D& rhs) const{
+        
+        if(this->GetPosition().X()!=rhs.GetPosition().X()){
+            return this->GetPosition().X()<rhs.GetPosition().X();
+        }else if(this->GetPosition().X()==rhs.GetPosition().X()){
+            if(this->GetPosition().Z()!=rhs.GetPosition().Z()){
+                return this->GetPosition().Z()<rhs.GetPosition().Z();
+            }else if(this->GetPosition().Z()==rhs.GetPosition().Z()){
+                return this->GetPosition().Y()<rhs.GetPosition().Y();
+            }
+        }
+        return false;
+    }
     
    
 private:
