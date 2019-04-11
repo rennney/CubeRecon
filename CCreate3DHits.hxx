@@ -48,6 +48,8 @@ bool SortHits(const CHit2D& lhs,  const CHit2D& rhs){
                 return lhs.GetRow()<rhs.GetRow();
                 }
     
+    return false;
+    
 };
 
 bool SortHits3D(const CHit3D& lhs,  const CHit3D& rhs){
@@ -61,7 +63,7 @@ bool SortHits3D(const CHit3D& lhs,  const CHit3D& rhs){
             return lhs.GetPosition().Y()<rhs.GetPosition().Y();
         }
     }
-    
+    return false;
 };
 
 std::set<double> UniqueElements(std::vector<CHit2D> tgt,int c=0){
@@ -181,10 +183,10 @@ void CCreate3DHits(TTree* tree2D){
     std::vector<CHit2D> unused2D;
     
     TFile* hfile = new TFile("FileWith3DHits.root","RECREATE");
-    TTree *newTree = new TTree("treeWith3DHits","tree with 3D hits");
+    TTree *newTree = new TTree("treeWith3DHitt","tree with 3D hits");
     
-    newTree->Branch("3DHits","vector<CHit3D>",&hits3D,8000,1);
-    newTree->Branch("Unused2DHits","vector<CHit2D>",&unused2D,8000,1);
+    newTree->Branch("3DHits","vector<CHit3D>",&hits3D,64000,0);
+    newTree->Branch("Unused2DHits","vector<CHit2D>",&unused2D,64000,0);
     
     int nentry = tree2D->GetEntries();
     for(int i=0;i<nentry;++i){
@@ -311,8 +313,8 @@ void CCreate3DHits(TTree* tree2D){
       //  std::sort(hits3D.begin(),hits3D.end(),SortHits3D);
         for(std::size_t h=0;h<hits3D.size();++h){
             hits3D[h].SetId(h);
- 
         }
+
         
         std::cout<<"3D Hits Formed Total="<<hits3D.size()<<std::endl;
         std::cout<<"Unused Hits Total="<<unused2D.size()<<std::endl;

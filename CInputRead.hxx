@@ -24,6 +24,7 @@ bool SortHits3DTrue(const TVector3& lhs,  const TVector3& rhs){
             return lhs.Y()<rhs.Y();
         }
     }
+    return false;
     
 };
 
