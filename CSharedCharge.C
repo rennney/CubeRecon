@@ -91,6 +91,11 @@ struct AugmentedCube {
         // that all of the deposits are treated the same way.
         return 2.0*deriv/3.0;
     }
+
+    // Get the total deposit in this cube.  This is implemented after the
+    // AugmentedDeposit class is declared.
+    double GetDeposit() const;
+
 };
 
 // An object to keep track of the deposits that go with a particular CHit2D
@@ -137,7 +142,10 @@ struct AugmentedDeposit {
     // The contribution of this deposit to the cube.
     double GetDeposit() const {return Deposit;}
     // Change the deposit by a (usually) small amount.
-    void ChangeDeposit(double change) {Deposit += change;}
+    void ChangeDeposit(double change) {
+        while (std::abs(change) > 0.5*Deposit) change = 0.5*change;
+        Deposit += change;
+    }
     // The contribution of the deposit to the MPPC.
     double GetMeasurement() const {return Attenuation*Deposit;}
     // Set the deposit using the amount of charge measured at the MPPC.
@@ -150,9 +158,19 @@ struct AugmentedDeposit {
         return theFiber.IsSharedFiber();
     }
     // A convenient way to get the fiber charge.
-    double GetFiberMeasurement() {
+    double GetFiberMeasurement() const {
         const struct AugmentedFiber& theFiber = gAugmentedFibers[Fiber];
         return theFiber.GetMeasurement();
+    }
+    // A convenient way to get the fiber charge.
+    double GetFiberDeposits() const {
+        const struct AugmentedFiber& theFiber = gAugmentedFibers[Fiber];
+        return theFiber.GetDeposits();
+    }
+    // The number of shared cubes
+    double GetFiberCubes() const {
+        const struct AugmentedFiber& theFiber = gAugmentedFibers[Fiber];
+        return theFiber.Deposits.size();
     }
     // Calculate the derivative for this deposit.  This is broken into two
     // components.  The component for the fiber, and the component for the
@@ -163,20 +181,22 @@ struct AugmentedDeposit {
     // calculation will meet the constraint.  The multiplier will start small,
     // and be increaseduntil it's (approximately) infinite.
     double  DepositDerivative(double alpha) const {
-        double deriv = 0.0;
         const struct AugmentedFiber& theFiber = gAugmentedFibers[Fiber];
         if (!theFiber.IsSharedFiber()) {
             std::cout << "Calculating derivative for a fiber with only one hit"
                       << std::endl;
             return 0.0;
         }
-        deriv += alpha*FiberDerivative();
-        deriv += CubeDerivative();
+        double fiberDerivative = FiberDerivative();
+        double cubeDerivative = CubeDerivative();
+        double deriv = cubeDerivative + alpha*fiberDerivative;
         return deriv;
     }
     // The contribution to the derivative by the fiber...
     double  FiberDerivative() const {
         const struct AugmentedFiber& theFiber = gAugmentedFibers[Fiber];
+        double deposits = theFiber.GetDeposits();
+        double measurement = theFiber.GetMeasurement();
         double deriv
             = Attenuation*(theFiber.GetDeposits()-theFiber.GetMeasurement());
         return deriv;
@@ -193,6 +213,7 @@ struct AugmentedDeposit {
         }
         while (q.size() < 3) q.push_back(0.0);
         double deriv = theCube.CubeDerivative(q[0],q[1],q[2]);
+        return deriv;
     }
 };
 
@@ -203,6 +224,15 @@ double AugmentedFiber::GetDeposits() const {
         deposits += gAugmentedDeposits[*d].GetMeasurement();
     }
     return deposits;
+}
+
+double AugmentedCube::GetDeposit() const {
+    double deposit = 0.0;
+    for (std::vector<int>::const_iterator d = Deposits.begin();
+         d != Deposits.end(); ++d) {
+        deposit += gAugmentedDeposits[*d].GetDeposit();
+    }
+    return deposit;
 }
 
 // Routines to translate between the index in the hitXY, hitXZ, or hitYZ
@@ -325,30 +355,54 @@ void FillAugmented(const std::vector<CHit3D>& hit3D,
             Deposit.SetMeasurement(theFiber.Measurement);
             gAugmentedDeposits.push_back(Deposit);
         }
+        gAugmentedCubes.push_back(newCube);
     }
+
+    std::cout << "Augmented Cubes    " << gAugmentedCubes.size() << std::endl;
+    std::cout << "Augmented Deposits " << gAugmentedDeposits.size()<< std::endl;
+    std::cout << "Augmented Fibers   " << gAugmentedFibers.size() << std::endl;
 }
 
 double EvolveDeposits(double step, double alpha) {
     double totalChange = 0.0;
+    int deposit = 0;
     for (std::vector<struct AugmentedDeposit>::iterator d
              = gAugmentedDeposits.begin();
          d !=  gAugmentedDeposits.end(); ++d) {
         // If this is the only deposit for the fiber, then the deposit is
         // fixed to the measurement on the fiber.
         if (!(*d).HasSharedFiber()) {
+            double r = (*d).GetMeasurement() - (*d).GetFiberMeasurement();
+            if (std::abs(r) > 0.0001) {
+            std::cout << "delta " << r
+                      << " force " << (*d).GetMeasurement()
+                      << " to " << (*d).GetFiberMeasurement()
+                      << std::endl;
+            }
             (*d).SetMeasurement((*d).GetFiberMeasurement());
             continue;
         }
+
         double deriv = (*d).DepositDerivative(alpha);
         totalChange += std::abs(deriv);
-        step = step * deriv;
+        deriv = step * deriv / (*d).GetFiberCubes();
+#ifdef DEBUG_CHANGES
+        std::cout << "Deposit " << (*d).GetDeposit()
+                  << " contributes " << (*d).GetMeasurement()
+                  << " to " << (*d).GetFiberMeasurement()
+                  << " out of " << (*d).GetFiberDeposits()
+                  << " from " << (*d).GetFiberCubes()
+                  << " change " << - deriv
+                  << std::endl;
+#endif
         // Never make a step of more than one photoelectron.
-        if (step > 1.0) step = 1.0;
-        if (step < 1.0) step = 1.0;
+        if (deriv > 1.0) deriv = 1.0;
+        if (deriv < -1.0) deriv = -1.0;
         // The derivative points away from the minimum so "step backwards"
-        (*d).ChangeDeposit(-step);
-        return totalChange;
+        (*d).ChangeDeposit(-deriv);
+
     }
+    return totalChange;
 }
 
 void CSharedCharge(std::string file2D = "../FileWith2DHits.root",
@@ -373,15 +427,49 @@ void CSharedCharge(std::string file2D = "../FileWith2DHits.root",
         gTree3D->GetEntry(entry);
         std::cout << entry << std::endl;
         FillAugmented(*gHits, *gHitsYZ, *gHitsXZ, *gHitsXY);
+
+        // Relax for a very long time.  This could be a lot more efficient,
+        // but it's not so slow, so WTH.
         double alpha = 0.1;
-        double step = 0.1;
-        std::cout << "    Start evolution " << step
-                  << " " << alpha
+        double totalChange = 0.0;
+        for (int i=0; i<10000; ++i) {
+            double step = 1.0/alpha;
+            totalChange = EvolveDeposits(step,alpha);
+            alpha = 1.005*alpha;
+            if (alpha > 100) alpha = 100.0;
+        };
+
+        // Sum up the measured charge, and the sum of the divided deposits.
+        // The values should be very close.  This only includes fibers that
+        // contribute to a cube.
+        double measuredCharge = 0.0;
+        double depositedCharge = 0.0;
+        double hitCharge = 0.0;
+        for (std::vector<struct AugmentedDeposit>::const_iterator
+                 d = gAugmentedDeposits.begin();
+             d != gAugmentedDeposits.end(); ++d) {
+            measuredCharge += (*d).GetMeasurement();
+            depositedCharge += (*d).GetDeposit();
+            hitCharge += (*d).GetFiberMeasurement()/(*d).GetFiberCubes();
+        }
+
+        // Sum up the charge in all the cubes.
+        double cubeCharge = 0.0;
+        for (std::vector<struct AugmentedCube>::const_iterator
+                 c = gAugmentedCubes.begin();
+             c != gAugmentedCubes.end(); ++c) {
+            cubeCharge += (*c).GetDeposit();
+        }
+
+        std::cout << " Sum of charge in used fibers " << hitCharge
                   << std::endl;
-        double totalChange = EvolveDeposits(step,alpha);
-        std::cout << "    Total change: " << totalChange << std::endl;
-        std::cout << "    Average change: "
-                  << totalChange/gAugmentedDeposits.size() << std::endl;
+        std::cout << " Sum of charge assigned to cubes " << measuredCharge
+                  << std::endl;
+        std::cout << " Sum of the deposits assigned to cubes "
+                  << depositedCharge
+                  << std::endl;
+        std::cout << " Sum of charge in all the cubes " << cubeCharge
+                  << std::endl;
     }
 
 }
