@@ -36,6 +36,7 @@ TTree* gTree3D = nullptr;
 
 // A pointer to a vector of 3d hits read from the tree.
 std::vector<CHit3D>* gHits = nullptr;
+std::vector<CHit2D>* gUnusedHits = nullptr;
 
 // Attach the 3d hit tree.
 void Attach3D(std::string file3D) {
@@ -48,7 +49,34 @@ void Attach3D(std::string file3D) {
     gTree3D = (TTree*) gFile3D->Get("treeWith3DHitt");
 
     gTree3D->SetBranchAddress("3DHits",&gHits);
+    gTree3D->SetBranchAddress("Unused2DHits",&gUnusedHits);
 
+}
+
+TFile* gOutputFile = nullptr;
+TTree *gOutputTree = nullptr;
+std::vector<CHit3D> gOutput3D;
+std::vector<CHit2D> gOutput2D;
+
+void AttachOutput(std::string output3D) {
+
+    gOutputFile = new TFile(output3D.c_str(),"RECREATE");
+    gOutputTree = new TTree("treeWith3DHitt","tree with 3D hits (shared deposits)");
+
+    gOutputTree->Branch("3DHits","std::vector<CHit3D>",&gOutput3D,64000,0);
+    gOutputTree->Branch("Unused2DHits","std::vector<CHit2D>",&gOutput2D,64000,0);
+}
+
+// Find the amount of light attenuated in the fiber.  The attenuation values
+// are taken from Guang's ElecSim.C macro which is tuned for the super-fgd
+// prototype at CERN.
+double FiberAttenuation(double ell) {
+    const double LongCompFrac_FGD = 0.816;
+    const double LongAtt_FGD = 11926.; //*CLHEP::mm;
+    const double ShortAtt_FGD = 312.; //*CLHEP::mm;
+    double arg = LongCompFrac_FGD*ell/LongAtt_FGD +
+        (1.0-LongCompFrac_FGD)*ell/ShortAtt_FGD;
+    return std::exp(-arg);
 }
 
 // Forward declare the Augmented objects.
@@ -311,11 +339,9 @@ void FillAugmented(const std::vector<CHit3D>& hit3D,
             Deposit.Cube = cube;
             newCube.Deposits.push_back(Deposit.Index);
             theFiber.Deposits.push_back(Deposit.Index);
-#warning  BUG!!!! Add a bogus attenuation and fiber position.
-#define MPPC_POSITION (-1000.0)
-#define FIBER_ATTENUATION (5000.0)
+#define MPPC_POSITION (0.0)
             double dist = theCube.GetPosition().X() - MPPC_POSITION;
-            Deposit.Attenuation = std::exp(-dist/FIBER_ATTENUATION);
+            Deposit.Attenuation = FiberAttenuation(dist);
             Deposit.SetMeasurement(theFiber.Measurement);
             gAugmentedDeposits.push_back(Deposit);
         }
@@ -329,11 +355,9 @@ void FillAugmented(const std::vector<CHit3D>& hit3D,
             Deposit.Cube = cube;
             newCube.Deposits.push_back(Deposit.Index);
             theFiber.Deposits.push_back(Deposit.Index);
-#warning  BUG!!!! Add a bogus attenuation and fiber position.
-#define MPPC_POSITION (-1000.0)
-#define FIBER_ATTENUATION (5000.0)
+#define MPPC_POSITION (0.0)
             double dist = theCube.GetPosition().Y() - MPPC_POSITION;
-            Deposit.Attenuation = std::exp(-dist/FIBER_ATTENUATION);
+            Deposit.Attenuation = FiberAttenuation(dist);
             Deposit.SetMeasurement(theFiber.Measurement);
             gAugmentedDeposits.push_back(Deposit);
         }
@@ -347,11 +371,9 @@ void FillAugmented(const std::vector<CHit3D>& hit3D,
             Deposit.Cube = cube;
             newCube.Deposits.push_back(Deposit.Index);
             theFiber.Deposits.push_back(Deposit.Index);
-#warning  BUG!!!! Add a bogus attenuation and fiber position.
-#define MPPC_POSITION (-1000.0)
-#define FIBER_ATTENUATION (5000.0)
+#define MPPC_POSITION (0.0)
             double dist = theCube.GetPosition().Z() - MPPC_POSITION;
-            Deposit.Attenuation = std::exp(-dist/FIBER_ATTENUATION);
+            Deposit.Attenuation = FiberAttenuation(dist);
             Deposit.SetMeasurement(theFiber.Measurement);
             gAugmentedDeposits.push_back(Deposit);
         }
@@ -412,6 +434,7 @@ void CSharedCharge(std::string file2D = "../FileWith2DHits.root",
 
     Attach2D(file2D);
     Attach3D(file3D);
+    AttachOutput("FileWithShared.root");
 
     int entries3D = gTree3D->GetEntries();
     int entries2D = gTree2D->GetEntries();
@@ -422,6 +445,7 @@ void CSharedCharge(std::string file2D = "../FileWith2DHits.root",
         std::cout << "   3D " << file3D << std::endl;
     }
 
+    entries3D = 100;
     for (int entry = 0; entry < entries3D; ++entry) {
         gTree2D->GetEntry(entry);
         gTree3D->GetEntry(entry);
@@ -438,6 +462,34 @@ void CSharedCharge(std::string file2D = "../FileWith2DHits.root",
             alpha = 1.005*alpha;
             if (alpha > 100) alpha = 100.0;
         };
+
+        // Save the output
+        gOutput3D.clear();
+        std::copy(gHits->begin(), gHits->end(),
+                  std::back_inserter(gOutput3D));
+        gOutput2D.clear();
+        std::copy(gUnusedHits->begin(), gUnusedHits->end(),
+                  std::back_inserter(gOutput2D));
+        for (std::vector<struct AugmentedCube>::const_iterator
+                 c = gAugmentedCubes.begin();
+             c != gAugmentedCubes.end(); ++c) {
+            gOutput3D[c->Index].SetCharge(c->GetDeposit());
+        }
+        gOutputTree->Fill();
+
+        // Count the number of non-overlapped fibers
+        int totalFibers = 0;
+        int withChargeFibers = 0;
+        int multiCubeFibers = 0;
+        for (std::map<int,struct AugmentedFiber>::iterator
+                 f = gAugmentedFibers.begin();
+             f != gAugmentedFibers.end(); ++f) {
+            ++totalFibers;
+            if (f->second.Deposits.size() < 1) continue;
+            ++withChargeFibers;
+            if (f->second.Deposits.size() < 2) continue;
+            ++multiCubeFibers;
+        }
 
         // Sum up the measured charge, and the sum of the divided deposits.
         // The values should be very close.  This only includes fibers that
@@ -470,6 +522,9 @@ void CSharedCharge(std::string file2D = "../FileWith2DHits.root",
                   << std::endl;
         std::cout << " Sum of charge in all the cubes " << cubeCharge
                   << std::endl;
+        std::cout << " Fibers --  Total: " << totalFibers
+                  << ",  Above Threshold: " << withChargeFibers
+                  << ",  Overlaps: " << multiCubeFibers << std::endl;
     }
 
 }
