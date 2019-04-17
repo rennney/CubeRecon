@@ -1,3 +1,16 @@
+/////////////////////////////////////////////////////////////////////
+//
+// A root macro to distribute the charge measured on each fiber among the
+// cubes that are sharing the fiber.  Takes two input trees.  The first is a
+// tree of the 2D hits.  The second is the tree of the associated 3D hits.  It
+// will write a new tree of 3D hits which contains the charge sharing.  The
+// output tree is in a new file, and has the same structure as the input tree
+// of 3D hits.  This debugged using ROOT 6.10.  It is run using:
+//
+// root -q -l -b CHit2D.cxx+ CHit3D.cxx+ CSharedCharge.C++
+//
+/////////////////////////////////////////////////////////////////////
+
 #include <string>
 #include <iostream>
 #include <cmath>
@@ -16,6 +29,7 @@ std::vector<CHit2D>* gHitsYZ = nullptr;
 std::vector<CHit2D>* gHitsXZ = nullptr;
 std::vector<CHit2D>* gHitsXY = nullptr;
 
+// Set up the tree for the 2D hits.
 void Attach2D(std::string file2D) {
 
     if (!TClass::GetDict("CHit2D")) {
@@ -38,7 +52,7 @@ TTree* gTree3D = nullptr;
 std::vector<CHit3D>* gHits = nullptr;
 std::vector<CHit2D>* gUnusedHits = nullptr;
 
-// Attach the 3d hit tree.
+// Set up the tree for the input 3D hits.
 void Attach3D(std::string file3D) {
 
     if (!TClass::GetDict("CHit3D")) {
@@ -58,10 +72,12 @@ TTree *gOutputTree = nullptr;
 std::vector<CHit3D> gOutput3D;
 std::vector<CHit2D> gOutput2D;
 
+// Set up the tree for the output hits.
 void AttachOutput(std::string output3D) {
 
     gOutputFile = new TFile(output3D.c_str(),"RECREATE");
-    gOutputTree = new TTree("treeWith3DHitt","tree with 3D hits (shared deposits)");
+    gOutputTree = new TTree("treeWith3DHitt",
+                            "tree with 3D hits (w/ shared deposits)");
 
     gOutputTree->Branch("3DHits","std::vector<CHit3D>",&gOutput3D,64000,0);
     gOutputTree->Branch("Unused2DHits","std::vector<CHit2D>",&gOutput2D,64000,0);
@@ -271,14 +287,12 @@ int YZHit2DIndex(int hit) {
 int YZHit2DIndex(const CHit2D& hit) {
     return YZHit2DIndex(hit.GetId());
 }
-
 int XZHit2DIndex(int hit) {
     return 2000000 + hit;
 }
 int XZHit2DIndex(const CHit2D& hit) {
     return XZHit2DIndex(hit.GetId());
 }
-
 int XYHit2DIndex(int hit) {
     return 3000000 + hit;
 }
@@ -323,7 +337,7 @@ void FillAugmented(const std::vector<CHit3D>& hit3D,
         gAugmentedFibers[newFiber.Index] = newFiber;
     }
 
-    // Fill the augmented cubes and augmented deposites for each of the 3D
+    // Fill the augmented cubes and augmented deposits for each of the 3D
     // hits.
     for (std::size_t cube = 0; cube < hit3D.size(); ++cube) {
         const CHit3D& theCube = hit3D[cube];
@@ -380,6 +394,14 @@ void FillAugmented(const std::vector<CHit3D>& hit3D,
         gAugmentedCubes.push_back(newCube);
     }
 
+    // Set the deposit measurements so that they sum to the total fiber charge.
+    for (std::vector<struct AugmentedDeposit>::iterator d
+             = gAugmentedDeposits.begin();
+         d !=  gAugmentedDeposits.end(); ++d) {
+        if (d->GetFiberCubes()<1) continue;
+        d->SetMeasurement(d->GetFiberMeasurement()/d->GetFiberCubes());
+    }
+
     std::cout << "Augmented Cubes    " << gAugmentedCubes.size() << std::endl;
     std::cout << "Augmented Deposits " << gAugmentedDeposits.size()<< std::endl;
     std::cout << "Augmented Fibers   " << gAugmentedFibers.size() << std::endl;
@@ -406,8 +428,8 @@ double EvolveDeposits(double step, double alpha) {
         }
 
         double deriv = (*d).DepositDerivative(alpha);
-        totalChange += std::abs(deriv);
         deriv = step * deriv / (*d).GetFiberCubes();
+        totalChange += std::abs(deriv);
 #ifdef DEBUG_CHANGES
         std::cout << "Deposit " << (*d).GetDeposit()
                   << " contributes " << (*d).GetMeasurement()
@@ -443,13 +465,15 @@ void CSharedCharge(std::string file2D = "../FileWith2DHits.root",
         std::cout << "OOPS!  Do the files go together?" << std::endl;
         std::cout << "   2D " << file2D << std::endl;
         std::cout << "   3D " << file3D << std::endl;
+        std::exit(1);
     }
 
-    entries3D = 100;
     for (int entry = 0; entry < entries3D; ++entry) {
+        std::cout << "Entry " << entry << std::endl;
+
         gTree2D->GetEntry(entry);
         gTree3D->GetEntry(entry);
-        std::cout << entry << std::endl;
+
         FillAugmented(*gHits, *gHitsYZ, *gHitsXZ, *gHitsXY);
 
         // Relax for a very long time.  This could be a lot more efficient,
@@ -457,10 +481,34 @@ void CSharedCharge(std::string file2D = "../FileWith2DHits.root",
         double alpha = 0.1;
         double totalChange = 0.0;
         for (int i=0; i<10000; ++i) {
-            double step = 1.0/alpha;
+            double step = 0.5/alpha;
+            // Take one step.
             totalChange = EvolveDeposits(step,alpha);
-            alpha = 1.005*alpha;
-            if (alpha > 100) alpha = 100.0;
+            // Find the total measured charge, and the current sum of the
+            // charge distributed to the cubes.  When the measured charge and
+            // the distributed charge are close, stop the iterations.
+            double measuredCharge = 0.0;
+            double fiberCharge = 0.0;
+            for (std::vector<struct AugmentedDeposit>::const_iterator
+                     d = gAugmentedDeposits.begin();
+                 d != gAugmentedDeposits.end(); ++d) {
+                measuredCharge += (*d).GetMeasurement();
+                fiberCharge += (*d).GetFiberMeasurement()/(*d).GetFiberCubes();
+            }
+            double diff = std::abs(measuredCharge - fiberCharge);
+            double delta = diff/fiberCharge;
+#ifdef DEBUG_EVOLUTION
+            std::cout << i
+                      << " " << totalChange
+                      << " " << alpha
+                      << " " << step
+                      << " " << diff
+                      << " " << delta
+                      << std::endl;
+#endif
+            if (diff < 1.0 && delta < 1.0E-4) break;
+            // Increase the Lagrange multiplier.
+            alpha = std::min(1.001*alpha,100.0);
         };
 
         // Save the output
@@ -496,13 +544,13 @@ void CSharedCharge(std::string file2D = "../FileWith2DHits.root",
         // contribute to a cube.
         double measuredCharge = 0.0;
         double depositedCharge = 0.0;
-        double hitCharge = 0.0;
+        double fiberCharge = 0.0;
         for (std::vector<struct AugmentedDeposit>::const_iterator
                  d = gAugmentedDeposits.begin();
              d != gAugmentedDeposits.end(); ++d) {
             measuredCharge += (*d).GetMeasurement();
             depositedCharge += (*d).GetDeposit();
-            hitCharge += (*d).GetFiberMeasurement()/(*d).GetFiberCubes();
+            fiberCharge += (*d).GetFiberMeasurement()/(*d).GetFiberCubes();
         }
 
         // Sum up the charge in all the cubes.
@@ -510,12 +558,39 @@ void CSharedCharge(std::string file2D = "../FileWith2DHits.root",
         for (std::vector<struct AugmentedCube>::const_iterator
                  c = gAugmentedCubes.begin();
              c != gAugmentedCubes.end(); ++c) {
-            cubeCharge += (*c).GetDeposit();
+            cubeCharge += c->GetDeposit();
+#ifdef DEBUG_CHARGE_SPLITTING
+            double qsum = 0.0;
+            double qqsum = 0.0;
+            double sum = 0.0;
+            int sharedFibers = 0;
+            for (std::vector<int>::const_iterator d = c->Deposits.begin();
+                 d != c->Deposits.end(); ++d) {
+                double q =  gAugmentedDeposits[*d].GetDeposit();
+                std::cout << q;
+                qsum += q;
+                qqsum += q*q;
+                sum += 1.0;
+                if (gAugmentedDeposits[*d].GetFiberCubes() > 1) {
+                    ++sharedFibers;
+                    std::cout << "+";
+                }
+                std::cout << " ";
+            }
+            double qrms = 0.0;
+            if (sum > 1.0) {
+                qsum /= sum;
+                qqsum /= sum;
+                qrms = sqrt(qqsum-qsum*qsum);
+            }
+            std::cout << qrms << " " << sharedFibers << std::endl;
+#endif
         }
 
-        std::cout << " Sum of charge in used fibers " << hitCharge
+        std::cout << " Sum of charge in used fibers " << fiberCharge
                   << std::endl;
-        std::cout << " Sum of charge assigned to cubes " << measuredCharge
+        std::cout << " Sum of charge distributed to cubes " << measuredCharge
+                  << " (should about match the above)."
                   << std::endl;
         std::cout << " Sum of the deposits assigned to cubes "
                   << depositedCharge
@@ -526,5 +601,4 @@ void CSharedCharge(std::string file2D = "../FileWith2DHits.root",
                   << ",  Above Threshold: " << withChargeFibers
                   << ",  Overlaps: " << multiCubeFibers << std::endl;
     }
-
 }
