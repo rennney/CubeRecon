@@ -22,6 +22,7 @@
 #include "CCluster3D.hxx"
 #include "CInputRead.hxx"
 #include "CCreate3DHits.hxx"
+#include "CSharedCharge.hxx"
 #include "CCluster3DHits.hxx"
 
 int CRecon(){
@@ -57,8 +58,10 @@ int CRecon(){
     hfile2D->Close();
     delete hfile2D;
     
-    TFile* hfile3D = new TFile("FileWith3DHits.root","READ");
-    TTree* tree3D = (TTree*)hfile3D->Get("treeWith3DHitt");
+    CSharedCharge("FileWith2DHits.root","FileWith3DHits.root","FileWith3DHits_SharedCharge.root");
+    
+    TFile* hfile3D = new TFile("FileWith3DHits_SharedCharge.root","READ");
+    TTree* tree3D = (TTree*)hfile3D->Get("treeWith3DHits");
     
     CCluster3DHits(tree3D);
     
