@@ -19,11 +19,13 @@
 
 #include "CHit2D.hxx"
 #include "CHit3D.hxx"
+#include "CBond3D.hxx"
 #include "CCluster3D.hxx"
 #include "CInputRead.hxx"
 #include "CCreate3DHits.hxx"
 #include "CSharedCharge.hxx"
 #include "CCluster3DHits.hxx"
+
 
 int CRecon(){
     
@@ -35,9 +37,14 @@ int CRecon(){
         gROOT->ProcessLine(".L CHit3D.cxx++");
     }
     
+    if (!TClass::GetDict("CBond3D")) {
+        gROOT->ProcessLine(".L CBond3D.cxx++");
+    }
+    
     if (!TClass::GetDict("CCluster3D")) {
         gROOT->ProcessLine(".L CCluster3D.cxx++");
     }
+    
     
     TFile* hfile = new TFile("testEvent_3DST+emptyECAL_event_222_sampleT_v2.root","READ");
     TTree* tree = (TTree*)hfile->Get("EDepSimTree");
@@ -65,8 +72,8 @@ int CRecon(){
     
     CCluster3DHits(tree3D);
     
-   // hfile3D->Close();
-   // delete hfile3D;
+    hfile3D->Close();
+    delete hfile3D;
     
     
     return 0;

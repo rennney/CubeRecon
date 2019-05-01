@@ -51,9 +51,9 @@ void CInputRead(TTree *tree,int& nevts,int& skip){
     TFile* hfile2 = new TFile("FileWith2DHits.root","RECREATE");
     TTree *newTree = new TTree("treeWith2DHits","tree with 2D hits");
     
-    newTree->Branch("2DHitsXY","vector<CHit2D>",&hitsXY,8000,1);
-    newTree->Branch("2DHitsXZ","vector<CHit2D>",&hitsXZ,8000,1);
-    newTree->Branch("2DHitsYZ","vector<CHit2D>",&hitsYZ,8000,1);
+    newTree->Branch("2DHitsXY","vector<CHit2D>",&hitsXY,64000,1);
+    newTree->Branch("2DHitsXZ","vector<CHit2D>",&hitsXZ,64000,1);
+    newTree->Branch("2DHitsYZ","vector<CHit2D>",&hitsYZ,64000,1);
 
     int nevents = tree->GetEntries();
     if(nevts>nevents){
@@ -63,6 +63,7 @@ void CInputRead(TTree *tree,int& nevts,int& skip){
     
   
     for(int evt=skip;evt<nevts;++evt){
+        std::cout<<"Process event "<<evt<<"/"<<nevts<<std::endl;
         tree->GetEntry(evt);
         
 

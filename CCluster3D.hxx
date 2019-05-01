@@ -8,6 +8,7 @@
 #include <vector>
 #include "TVector3.h"
 #include "CHit3D.hxx"
+#include "CBond3D.hxx"
 
 /// The base class for a clustered hits
 
@@ -18,14 +19,38 @@ public:
     
     void SetId(int id){fID=id;}
     
-    void SetConstituents(std::vector<CHit3D> hits){
-        fConstituents = hits;
+    void AddConstituent(int hit){
+        fConstituents.push_back(hit);
+    }
+    
+    void SetStartPoint(int hit){
+        fStart = hit;
+    }
+    
+    void SetEndPoint(int hit){
+        fEnd = hit;
+    }
+   
+    void AddBond(int bond){
+        fBonds.push_back(bond);
     }
    
     int GetId() const{return fID;}
     
-    std::vector<CHit3D> GetConstituents() const{
+    std::vector<int> GetConstituents() const{
         return fConstituents;
+    }
+    
+    int GetStartPoint() const{
+        return fStart;
+    }
+    
+    int GetEndPoint() const{
+        return fEnd;
+    }
+    
+    std::vector<int> GetBonds() const{
+        return fBonds;
     }
     
     bool operator==(const CCluster3D& rhs) const { return this->GetId() == rhs.GetId();}
@@ -35,7 +60,13 @@ private:
     
     int fID;
     
-    std::vector<CHit3D> fConstituents;
+    std::vector<int> fConstituents;
+    
+    int fStart;
+    
+    int fEnd;
+    
+    std::vector<int> fBonds;
 
     ClassDef(CCluster3D,1);
 
