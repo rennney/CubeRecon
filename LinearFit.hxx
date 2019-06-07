@@ -8,7 +8,8 @@
 #include <vector>
 #include "TVector3.h"
 
-#include "Math/GSLSimAnMinimizer.h"
+//#include "Math/GSLSimAnMinimizer.h"
+#include "Math/Minimizer.h"
 #include "Math/Functor.h"
 
 
@@ -32,7 +33,8 @@ double distance(double x,double y,double z, const double* p ){
 
 double dir_constrain(const double* p){
     //direction constrain
-    return (p[0]*p[0]+p[2]*p[2]+p[4]*p[4]-1)/(p[0]*p[0]+p[2]*p[2]+p[4]*p[4]);
+   // std::cout<<"Direction="<<p[0]*p[0]+p[2]*p[2]+p[4]*p[4]<<std::endl;
+    return (p[0]*p[0]+p[2]*p[2]+p[4]*p[4]-1)*(p[0]*p[0]+p[2]*p[2]+p[4]*p[4]-1)/((p[0]*p[0]+p[2]*p[2]+p[4]*p[4])*(p[0]*p[0]+p[2]*p[2]+p[4]*p[4]));
 };
 
 double s_i(double x,double y,double z, const double* p){
@@ -63,7 +65,9 @@ struct Lagrangian{
             totS+=s_i((*fPoints)[i].X(),(*fPoints)[i].Y(),(*fPoints)[i].Z(),p);
         }
         totS=totS*totS;
-        
+        //std::cout<<"totDist="<<totDist<<std::endl;
+        //std::cout<<"dir_constrain="<<dir_constrain(p)<<std::endl;
+        //std::cout<<"totS="<<totS<<std::endl;
         return totDist+fLambda*dir_constrain(p)+fBetta*totS;
         
     };
@@ -77,7 +81,7 @@ std::vector<double> LinearFit(std::vector<TVector3> points, const double* p0){
     for(int i=0;i<6;++i){
        // std::cout<<p0[i]<<std::endl;
     }
-    Lagrangian L(&points,0.01,0.01);
+    Lagrangian L(&points,0.1,0.1);
     
 #ifdef __CINT__
     ROOT::Math::Functor f(&L,6,"Lagrangian");
@@ -85,31 +89,54 @@ std::vector<double> LinearFit(std::vector<TVector3> points, const double* p0){
     ROOT::Math::Functor f(L,6);
 #endif
     
-    ROOT::Math::GSLSimAnMinimizer min;
+   // ROOT::Math::GSLSimAnMinimizer min;
+   // ROOT::Math::GSLMinimizer min( ROOT::Math::kVectorBFGS );
+    //ROOT::Math::Minimizer* min =
+   // ROOT::Math::Factory::CreateMinimizer("Minuit","");
+    std::shared_ptr<ROOT::Math::Minimizer> min(ROOT::Math::Factory::CreateMinimizer("Minuit",""));
+    
         //1000000
-    min.SetMaxFunctionCalls(1000);
+    min->SetMaxFunctionCalls(1000);
        //100000
-    min.SetMaxIterations(1000);
-    min.SetTolerance(0.1);
+    min->SetMaxIterations(1000);
+    min->SetTolerance(0.1);
     double step[6] = {0.1,0.1,0.1,0.1,0.1,0.1};
     
-    min.SetFunction(f);
+    min->SetFunction(f);
     
-    min.SetVariable(0,"dx",variable[0], step[0]);
-    min.SetVariable(1,"x0",variable[1], step[1]);
-    min.SetVariable(2,"dy",variable[2], step[2]);
-    min.SetVariable(3,"y0",variable[3], step[3]);
-    min.SetVariable(4,"dz",variable[4], step[4]);
-    min.SetVariable(5,"z0",variable[5], step[5]);
+    min->SetVariable(0,"dx",variable[0], step[0]);
+    min->SetVariable(1,"x0",variable[1], step[1]);
+    min->SetVariable(2,"dy",variable[2], step[2]);
+    min->SetVariable(3,"y0",variable[3], step[3]);
+    min->SetVariable(4,"dz",variable[4], step[4]);
+    min->SetVariable(5,"z0",variable[5], step[5]);
     
-    min.Minimize();
+    min->Minimize();
     
-    const double* pm = min.X();
+    const double* pm = min->X();
 
     std::vector<double> output;
     for(int i=0;i<6;++i){
         output.push_back(pm[i]);
     }
+   
+    for(int i=0;i<6;++i){
+        for(int j=0;j<6;++j){
+            //std::cout<<min->CovMatrix(i,j)<<" ";
+        }
+       // std::cout<<""<<std::endl;
+    }
+
+    for(int i=0;i<6;++i){
+        for(int j=0;j<6;++j){
+             output.push_back(min->CovMatrix(i,j));
+        }
+    }
+    
+
+
+  //  delete min;
+    
     
     return output;
     
