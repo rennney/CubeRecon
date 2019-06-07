@@ -181,12 +181,12 @@ void CCluster3DHits(TTree* tree3D){
                 }
                 clustersFinal.push_back(cluster);
             }else{
-
 #ifdef SPLITTING
                 bool allVisited=0;
                 std::vector<CCluster3D> clusters;
                 std::vector<CHit3D> shortTails;
                 std::vector<int> shortTailsInd;
+                
                 while(!allVisited){
                     int placeInTree2=-2;
                     int topDepth2=-2;
@@ -196,18 +196,20 @@ void CCluster3DHits(TTree* tree3D){
                             placeInTree2=t;
                         }
                     }
- 
+                   
                     int startIndex=placeInTree2;
                     
                     if(startIndex==-2){allVisited=1;continue;}
-
+                    
                     std::vector<int> parents = indexNParents(tree2,startIndex,SPLITSIZE);
+              
                     tree2[startIndex].UserData=1;
                     int distToUsed=0;
                     for(std::size_t p=0;p<parents.size();++p){
                         if(tree2[parents[p]].UserData==0){distToUsed++;}else{break;}
                     }
                     if((int)parents.size()==SPLITSIZE && distToUsed>14){
+                        
                         std::vector<std::pair<int,double>> runningAlphaPairs;
                         int currentIndex = parents[6];
                         bool hitroot=0;
@@ -219,6 +221,7 @@ void CCluster3DHits(TTree* tree3D){
                         }
                         
                         while (!hitroot && !hitUsedHit) {
+                            
                             std::vector<int> parentsBefore = indexNParents(tree2,startIndex,7);
                             parentsBefore.insert(parentsBefore.begin(),startIndex);
                             std::vector<int> parentsAfter = indexNParents(tree2,currentIndex,7);
@@ -246,7 +249,7 @@ void CCluster3DHits(TTree* tree3D){
                             p0After[1]=pointsAfter[0].X();
                             p0After[3]=pointsAfter[0].Y();
                             p0After[5]=pointsAfter[0].Z();
-
+                            
                             std::vector<double> outBefore = LinearFit(pointsBefore,p0Before);
                             std::vector<double> outAfter = LinearFit(pointsAfter,p0After);
                             
@@ -322,7 +325,6 @@ void CCluster3DHits(TTree* tree3D){
                         tree2[currentIndex].UserData=1;
 
                     }else{
-                        
                         parents.insert(parents.begin(),startIndex);
                         if(distToUsed<5){
                             for(std::size_t p=0;p<distToUsed+1;++p){
@@ -333,13 +335,14 @@ void CCluster3DHits(TTree* tree3D){
                         }else{
                             //CreateCluster
                             CCluster3D clusterPart;
-                            for(std::size_t p=0;p<distToUsed+2;++p){
-                                if((int)p==0)clusterPart.SetStartPoint(tree2[parents[p]].Object.GetId());
-                                if((int)p==distToUsed+1)clusterPart.SetEndPoint(tree2[parents[p]].Object.GetId());
+                            int p_final=-1;
+                            if(distToUsed+2<(int)parents.size()){p_final=distToUsed+2;}else{p_final=(int)parents.size();}
+                            for(int p=0;p<p_final;++p){
+                                if(p==0)clusterPart.SetStartPoint(tree2[parents[p]].Object.GetId());
+                                if(p==p_final-1)clusterPart.SetEndPoint(tree2[parents[p]].Object.GetId());
                                 clusterPart.AddConstituent(tree2[parents[p]].Object.GetId());
                                 tree2[parents[p]].UserData=1;
                             }
-  
                             clusters.push_back(clusterPart);
                         }
                     }
