@@ -89,7 +89,9 @@ void CCluster3DHits(TTree* tree3D){
     
 #define SPLITTING
 #ifdef SPLITTING
-    int SPLITSIZE=15;
+    int SPLITSIZE=19; //must be odd
+    int NHITSFIT=(SPLITSIZE-1)/2;
+    double ANGLE=0.8;
 #endif
 #ifndef SPLITTING
     int SPLITSIZE=9999;
@@ -128,8 +130,13 @@ void CCluster3DHits(TTree* tree3D){
         all3D=(*hits3D);
         
         std::shared_ptr<AlgDBScan> clus(new AlgDBScan(minHits,maxDist));
+        std::vector<CHit3D> hits3D_mod;
+        for(std::size_t h=0;h<hits3D->size();++h){
+            if((*hits3D)[h].GetCharge()<2)continue;
+            hits3D_mod.push_back((*hits3D)[h]);
+        }
         
-        clus->Cluster(*hits3D);
+        clus->Cluster(hits3D_mod);
         
         unsigned int nClusters=clus->GetClusterCount();
         
@@ -222,9 +229,9 @@ void CCluster3DHits(TTree* tree3D){
                         
                         while (!hitroot && !hitUsedHit) {
                             
-                            std::vector<int> parentsBefore = indexNParents(tree2,startIndex,7);
+                            std::vector<int> parentsBefore = indexNParents(tree2,startIndex,NHITSFIT);
                             parentsBefore.insert(parentsBefore.begin(),startIndex);
-                            std::vector<int> parentsAfter = indexNParents(tree2,currentIndex,7);
+                            std::vector<int> parentsAfter = indexNParents(tree2,currentIndex,NHITSFIT);
                             parentsAfter.insert(parentsAfter.begin(),currentIndex);
                             std::vector<TVector3> pointsBefore;
                             std::vector<TVector3> pointsAfter;
@@ -239,9 +246,9 @@ void CCluster3DHits(TTree* tree3D){
                             p0Before[0]=unitBefore.X();
                             p0Before[2]=unitBefore.Y();
                             p0Before[4]=unitBefore.Z();
-                            p0Before[1]=pointsBefore[7].X();
-                            p0Before[3]=pointsBefore[7].Y();
-                            p0Before[5]=pointsBefore[7].Z();
+                            p0Before[1]=pointsBefore[NHITSFIT].X();
+                            p0Before[3]=pointsBefore[NHITSFIT].Y();
+                            p0Before[5]=pointsBefore[NHITSFIT].Z();
                             TVector3 unitAfter=(pointsAfter.front()-pointsAfter.back()).Unit();
                             p0After[0]=unitAfter.X();
                             p0After[2]=unitAfter.Y();
@@ -258,7 +265,7 @@ void CCluster3DHits(TTree* tree3D){
                             
                             double alpha =(vectBefore.Unit()).Dot((vectAfter.Unit()));///(unitBefore.Mag()*vectBefore.Mag());
                             
-                            if(fabs(alpha)<0.8){runningAlphaPairs.push_back(std::make_pair(currentIndex,alpha));}else{runningAlphaPairs.push_back(std::make_pair(currentIndex,100));}
+                            if(fabs(alpha)<ANGLE){runningAlphaPairs.push_back(std::make_pair(currentIndex,alpha));}else{runningAlphaPairs.push_back(std::make_pair(currentIndex,100));}
                             tree2[currentIndex].UserData=1;
                             currentIndex=tree2[currentIndex].Parent;
                             startIndex=tree2[startIndex].Parent;
@@ -272,9 +279,9 @@ void CCluster3DHits(TTree* tree3D){
                             
                         }
                         
-                        std::vector<int> parentsLast = indexNParents(tree2,currentIndex,7);
+                        std::vector<int> parentsLast = indexNParents(tree2,currentIndex,NHITSFIT);
                         parentsLast.insert(parentsLast.begin(),currentIndex);
-                        for(int a=0;a<7;++a){
+                        for(int a=0;a<NHITSFIT;++a){
                             runningAlphaPairs.push_back(std::make_pair(parentsLast[a],100));
                         }
 
