@@ -113,15 +113,17 @@ void CInputRead(TTree *tree,int& nevts,int& skip){
         std::shared_ptr<std::vector<int>> vect3(new std::vector<int>);
         trueInfoYZ.push_back(std::make_pair(i,vect3));
     }
-    
+        int n3DHits=0;
     for(int i=0;i<NHITS;i++){
         if(hitPE[i][0]>-1){
             if(hitPE[i][0]>9999 || hitPE[i][1]>9999 || hitPE[i][2]>9999)continue;
             if(hitLocation[i][0]>9999 || hitLocation[i][1]>9999 || hitLocation[i][2]>9999 )continue;
+            if(hitPE[i][0]<-9999 || hitPE[i][1]<-9999 || hitPE[i][2]<-9999)continue;
+            if(hitLocation[i][0]<-9999 || hitLocation[i][1]<-9999 || hitLocation[i][2]<-9999 )continue;
             if(isnan(hitLocation[i][0]) || isnan(hitLocation[i][1]) || isnan(hitLocation[i][2]) )continue;
             TVector3 position(hitLocation[i][0],hitLocation[i][1],hitLocation[i][2]);
-            
-            
+        //std::cout<<position.X()<<" "<<position.Y()<<" "<<position.Z()<<std::endl;
+            n3DHits++;
             double chargeXY = (double)hitPE[i][2];
             double chargeXZ = (double)hitPE[i][1];
             double chargeYZ = (double)hitPE[i][0];
@@ -172,6 +174,17 @@ void CInputRead(TTree *tree,int& nevts,int& skip){
             }
         }
     }
+        
+        for(int i=0;i<NHITS;i++){
+            if(hitPE[i][0]>-1){
+                hitLocation[i][0]=99999;
+                hitLocation[i][1]=99999;
+                hitLocation[i][2]=99999;
+                hitPE[i][0]=99999;
+                hitPE[i][1]=99999;
+                hitPE[i][2]=99999;
+            }}
+        
         int nXY=0;
         int nXZ=0;
         int nYZ=0;
@@ -230,8 +243,8 @@ void CInputRead(TTree *tree,int& nevts,int& skip){
             nYZ++;
         }
     }
-        
-
+        std::cout<<"processed3Dhits="<<n3DHits<<std::endl;
+        std::cout<<" hitxXY2dFormed="<<hitsXY.size()<<" hitxXZ2dFormed="<<hitsXZ.size()<<" hitxYZ2dFormed="<<hitsYZ.size()<<std::endl;
         delete chargeXZplot;
         delete chargeXYplot;
         delete chargeYZplot;
@@ -245,6 +258,7 @@ void CInputRead(TTree *tree,int& nevts,int& skip){
         hitsXY.clear();
         hitsXZ.clear();
         hitsYZ.clear();
+        
         
         trueInfoXY.clear();
         trueInfoXZ.clear();
