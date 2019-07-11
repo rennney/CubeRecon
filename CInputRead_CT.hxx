@@ -117,10 +117,12 @@ void CInputRead(TTree *tree,int& nevts,int& skip){
     for(int i=0;i<NHITS;i++){
         if(hitPE[i][0]>-1){
             if(hitPE[i][0]>9999 || hitPE[i][1]>9999 || hitPE[i][2]>9999)continue;
+             if(hitPE[i][0]<-9999 || hitPE[i][1]<-9999 || hitPE[i][2]<-9999)continue;
             if(hitLocation[i][0]>9999 || hitLocation[i][1]>9999 || hitLocation[i][2]>9999 )continue;
             if(hitPE[i][0]<-9999 || hitPE[i][1]<-9999 || hitPE[i][2]<-9999)continue;
             if(hitLocation[i][0]<-9999 || hitLocation[i][1]<-9999 || hitLocation[i][2]<-9999 )continue;
             if(isnan(hitLocation[i][0]) || isnan(hitLocation[i][1]) || isnan(hitLocation[i][2]) )continue;
+            if((hitLocation[i][0]>-0.0001 && hitLocation[i][0]<0.0001) || (hitLocation[i][1]>-0.0001 && hitLocation[i][1]<0.0001) || (hitLocation[i][2]>-0.0001 && hitLocation[i][2]<0.0001) )continue;
             TVector3 position(hitLocation[i][0],hitLocation[i][1],hitLocation[i][2]);
         //std::cout<<position.X()<<" "<<position.Y()<<" "<<position.Z()<<std::endl;
             n3DHits++;
