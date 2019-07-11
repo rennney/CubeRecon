@@ -21,7 +21,7 @@
 #include "CHit3D.hxx"
 #include "CBond3D.hxx"
 #include "CCluster3D.hxx"
-#include "CInputRead.hxx"
+#include "CInputRead_CT.hxx"
 #include "CCreate3DHits.hxx"
 #include "CSharedCharge.hxx"
 #include "CCluster3DHits.hxx"
@@ -46,11 +46,13 @@ int CRecon(){
     }
     
     
-    TFile* hfile = new TFile("testEvent_3DST+emptyECAL_event_222_sampleT_v2.root","READ");
-    TTree* tree = (TTree*)hfile->Get("EDepSimTree");
+    /*TFile* hfile = new TFile("full3DST.neutrino.eleSim.file0_qe.root","READ");
+    TTree* tree = (TTree*)hfile->Get("EDepSimTree");*/
+    TFile* hfile = new TFile("/Users/sergey/Desktop/DUNE/work/Reconstruction/Cesar/rec/MC_output.root","READ");
+    TTree* tree = (TTree*)hfile->Get("AllEvents");
     
-    int nprocessEvents = 1;
-    int skip=0;
+    int nprocessEvents = 300;
+    int skip=1;
     nprocessEvents+=skip;
     CInputRead(tree,nprocessEvents,skip);
     
@@ -74,7 +76,7 @@ int CRecon(){
     
     hfile3D->Close();
     delete hfile3D;
-    
+   
     
     return 0;
 }

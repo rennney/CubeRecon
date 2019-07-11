@@ -77,6 +77,8 @@ void AttachOutput(std::string output3D) {
 // Find the amount of light attenuated in the fiber.  The attenuation values
 // are taken from Guang's ElecSim.C macro which is tuned for the super-fgd
 // prototype at CERN.
+
+#ifdef GUANG
 double FiberAttenuation(double ell) {
     const double LongCompFrac_FGD = 0.816;
     const double LongAtt_FGD = 11926.; //*CLHEP::mm;
@@ -85,7 +87,21 @@ double FiberAttenuation(double ell) {
         (1.0-LongCompFrac_FGD)*ell/ShortAtt_FGD;
     return std::exp(-arg);
 }
-
+#endif
+#define SFGD
+#ifdef SFGD
+double FiberAttenuation(double ell) {
+    // const double LongCompFrac_FGD = 0.816;
+    // const double LongAtt_FGD = 11926.; //*CLHEP::mm;
+    // const double ShortAtt_FGD = 312.; //*CLHEP::mm;
+    
+    const double LongCompFrac_FGD = 0.77;
+    const double LongAtt_FGD = 4634.;//*CLHEP::mm;
+    const double ShortAtt_FGD = 332.;//*CLHEP::mm;
+    
+    return ( LongCompFrac_FGD*exp((-ell)/LongAtt_FGD) + (1-LongCompFrac_FGD)*exp((-ell)/ShortAtt_FGD) );
+}
+#endif
 // Forward declare the Augmented objects.
 struct AugmentedCube;
 struct AugmentedDeposit;
@@ -344,8 +360,9 @@ void FillAugmented(const std::vector<CHit3D>& hit3D,
             Deposit.Cube = cube;
             newCube.Deposits.push_back(Deposit.Index);
             theFiber.Deposits.push_back(Deposit.Index);
-#define MPPC_POSITION (0.0)
-            double dist = theCube.GetPosition().X() - MPPC_POSITION;
+            //-120.5
+#define MPPC_POSITION_X (-102)
+            double dist = (theCube.GetPosition().X() - MPPC_POSITION_X)*10;
             Deposit.Attenuation = FiberAttenuation(dist);
             Deposit.SetMeasurement(theFiber.Measurement);
             gAugmentedDeposits.push_back(Deposit);
@@ -360,8 +377,9 @@ void FillAugmented(const std::vector<CHit3D>& hit3D,
             Deposit.Cube = cube;
             newCube.Deposits.push_back(Deposit.Index);
             theFiber.Deposits.push_back(Deposit.Index);
-#define MPPC_POSITION (0.0)
-            double dist = theCube.GetPosition().Y() - MPPC_POSITION;
+            //-120.5
+#define MPPC_POSITION_Y (-94)
+            double dist = (theCube.GetPosition().Y() - MPPC_POSITION_Y)*10;
             Deposit.Attenuation = FiberAttenuation(dist);
             Deposit.SetMeasurement(theFiber.Measurement);
             gAugmentedDeposits.push_back(Deposit);
@@ -376,8 +394,9 @@ void FillAugmented(const std::vector<CHit3D>& hit3D,
             Deposit.Cube = cube;
             newCube.Deposits.push_back(Deposit.Index);
             theFiber.Deposits.push_back(Deposit.Index);
-#define MPPC_POSITION (0.0)
-            double dist = theCube.GetPosition().Z() - MPPC_POSITION;
+            //-100.5
+#define MPPC_POSITION_Z (-28)
+            double dist = (theCube.GetPosition().Z() - MPPC_POSITION_Z)*10;
             Deposit.Attenuation = FiberAttenuation(dist);
             Deposit.SetMeasurement(theFiber.Measurement);
             gAugmentedDeposits.push_back(Deposit);
